@@ -252,7 +252,7 @@
     </div>
 
     <!-- ADMIN -->
-    <div class="panel">
+    <div class="panel" id="adminSection">
       <h2>Admin <span class="badge" id="adminBadge">locked</span></h2>
 
       <div id="adminLocked">
@@ -293,6 +293,13 @@
         <button class="btn-secondary" id="parseBatchBtn">Preview list</button>
         <div class="batch-list" id="batchList" style="display:none"></div>
         <button class="btn-gold" id="downloadZipBtn">Download all as ZIP</button>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:20px 0;">
+        <label>Participant link</label>
+        <div class="hint">Copy this link and send it to participants — when they open it they’ll only see a name field for this event.</div>
+        <button class="btn-primary" id="makeLinkBtn">Generate participant link</button>
+        <input type="text" id="shareLink" readonly placeholder="Your shareable link appears here" style="margin-top:10px;">
+        <button class="btn-secondary" id="copyLinkBtn">Copy link</button>
 
         <div class="config-toggle" id="lockBtn">Lock admin</div>
       </div>
@@ -345,17 +352,38 @@ function sampleBg(){
   const d=tc.getImageData(1580,1155,1,1).data; BG_COLOR=`rgb(${d[0]},${d[1]},${d[2]})`;
 }
 
+
+/* ---------- shareable participant link (config in URL hash) ---------- */
+function encodeEvent(ev){
+  const o={n:ev.name||'',d:ev.description||'',q:ev.qrData||'',c:ev.qrCaption||'',p:ev.qrPassword||''};
+  return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function decodeEvent(b64){
+  try{ const s=b64.replace(/-/g,'+').replace(/_/g,'/');
+    const o=JSON.parse(decodeURIComponent(escape(atob(s))));
+    return {id:'shared',name:o.n||'',description:o.d||'',qrData:o.q||'',qrCaption:o.c||'',qrPassword:o.p||''};
+  }catch(e){ return null; }
+}
+function readSharedConfig(){ const m=(location.hash||'').match(/[#&]e=([^&]+)/); return m?decodeEvent(m[1]):null; }
+const SHARED = readSharedConfig();
+const PARTICIPANT_MODE = !!SHARED;
+
 /* ---------- events ---------- */
 function uid(){ return 'ev-'+Math.random().toString(36).slice(2,8); }
 function loadEvents(){ try{ const a=JSON.parse(localStorage.getItem(LS_EVENTS)); if(Array.isArray(a)&&a.length) return a; }catch(e){} return null; }
 function saveEvents(){ localStorage.setItem(LS_EVENTS, JSON.stringify(EVENTS)); }
-let EVENTS = loadEvents() || [{
-  id:uid(), name:'Dx Labs PLS — Nov 2025',
-  description:'for having completed the Preparatory Learning Session on Programming Basics and Setup (4 hours) held on 26 November 2025 via Zoom.',
-  qrData:'', qrCaption:'', qrPassword:''
-}];
-saveEvents();
-let activeId = localStorage.getItem(LS_ACTIVE) || EVENTS[0].id;
+let EVENTS, activeId;
+if(PARTICIPANT_MODE){
+  EVENTS=[SHARED]; activeId=SHARED.id;
+} else {
+  EVENTS = loadEvents() || [{
+    id:uid(), name:'Dx Labs PLS — Nov 2025',
+    description:'for having completed the Preparatory Learning Session on Programming Basics and Setup (4 hours) held on 26 November 2025 via Zoom.',
+    qrData:'', qrCaption:'', qrPassword:''
+  }];
+  saveEvents();
+  activeId = localStorage.getItem(LS_ACTIVE) || EVENTS[0].id;
+}
 function getActive(){ return EVENTS.find(e=>e.id===activeId) || EVENTS[0]; }
 function setActive(id){ activeId=id; localStorage.setItem(LS_ACTIVE,id); }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -506,6 +534,33 @@ document.getElementById('deleteEventBtn').addEventListener('click', ()=>{
   EVENTS=EVENTS.filter(e=>e.id!==activeId); setActive(EVENTS[0].id); saveEvents();
   refreshEventUI(); fillAdmin(getActive()); updateQR(); redraw();
 });
+
+
+/* ---------- participant link buttons ---------- */
+function currentAdminEvent(){
+  return { name:document.getElementById('evName').value.trim(),
+           description:document.getElementById('evDesc').value.trim(),
+           qrData:document.getElementById('evQr').value.trim(),
+           qrCaption:document.getElementById('evCap').value.trim(),
+           qrPassword:document.getElementById('evPass').value.trim() };
+}
+document.getElementById('makeLinkBtn').addEventListener('click', ()=>{
+  const ev=currentAdminEvent();
+  if(!ev.name && !ev.description){ alert('Fill in the event details first.'); return; }
+  const base=location.href.split('#')[0];
+  document.getElementById('shareLink').value = base + '#e=' + encodeEvent(ev);
+});
+document.getElementById('copyLinkBtn').addEventListener('click', ()=>{
+  const el=document.getElementById('shareLink'); if(!el.value){ alert('Generate the link first.'); return; }
+  const done=()=>{ const b=document.getElementById('copyLinkBtn'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy link',1200); };
+  if(navigator.clipboard){ navigator.clipboard.writeText(el.value).then(done).catch(()=>{ el.select(); document.execCommand('copy'); done(); }); }
+  else { el.select(); document.execCommand('copy'); done(); }
+});
+
+/* ---------- participant mode: hide all admin controls ---------- */
+if(PARTICIPANT_MODE){
+  const a=document.getElementById('adminSection'); if(a) a.style.display='none';
+}
 
 /* ---------- init ---------- */
 refreshEventUI(); updateQR();
