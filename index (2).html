@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UP OVCDT — Certificate Issuance System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;1,600&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --maroon:#7A0C2E;
+    --maroon-dark:#5C0921;
+    --green:#0F3D2E;
+    --gold:#F2A900;
+    --ink:#1B1B1F;
+    --paper:#FAFAF8;
+    --panel:#FFFFFF;
+    --line:#E7E3DC;
+    --muted:#6B6B72;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Poppins',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  header{
+    background:linear-gradient(120deg, var(--maroon-dark), var(--maroon) 55%, var(--green));
+    color:#fff;
+    padding:28px 32px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute;
+    right:-60px; bottom:-80px;
+    width:260px; height:260px;
+    background:radial-gradient(circle, var(--gold) 0%, transparent 70%);
+    opacity:.35;
+  }
+  header h1{
+    margin:0;
+    font-family:'Playfair Display',serif;
+    font-weight:900;
+    font-size:26px;
+    letter-spacing:.3px;
+  }
+  header p{
+    margin:6px 0 0;
+    font-size:13.5px;
+    opacity:.85;
+    max-width:640px;
+  }
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+    display:grid;
+    grid-template-columns:400px 1fr;
+    gap:24px;
+  }
+  @media (max-width:900px){
+    .wrap{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+  }
+  .panel + .panel{margin-top:20px;}
+  .panel h2{
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--maroon);
+    margin:0 0 14px;
+    font-weight:600;
+  }
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:500;
+    margin:14px 0 6px;
+    color:var(--ink);
+  }
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=url], textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-family:inherit;
+    font-size:14px;
+    background:#fff;
+    color:var(--ink);
+  }
+  textarea{resize:vertical; min-height:70px;}
+  input:focus, textarea:focus{
+    outline:none;
+    border-color:var(--maroon);
+    box-shadow:0 0 0 3px rgba(122,12,46,.1);
+  }
+  .hint{font-size:12px; color:var(--muted); margin-top:4px;}
+  .row{display:flex; gap:10px;}
+  .row > *{flex:1;}
+  button{
+    font-family:inherit;
+    font-weight:600;
+    font-size:13.5px;
+    border:none;
+    border-radius:8px;
+    padding:11px 16px;
+    cursor:pointer;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  button:active{transform:scale(.98);}
+  .btn-primary{
+    background:var(--maroon);
+    color:#fff;
+    width:100%;
+    margin-top:16px;
+  }
+  .btn-primary:hover{background:var(--maroon-dark);}
+  .btn-secondary{
+    background:#fff;
+    color:var(--ink);
+    border:1px solid var(--line);
+    width:100%;
+    margin-top:8px;
+  }
+  .btn-secondary:hover{border-color:var(--maroon); color:var(--maroon);}
+  .btn-gold{
+    background:var(--gold);
+    color:#3a2500;
+    width:100%;
+    margin-top:8px;
+  }
+  .btn-gold:hover{opacity:.9;}
+  .tabs{display:flex; gap:6px; margin-bottom:16px;}
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:9px 10px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    background:#F1EFEA;
+    color:var(--muted);
+    border:1px solid transparent;
+  }
+  .tab.active{
+    background:#fff;
+    color:var(--maroon);
+    border-color:var(--maroon);
+  }
+  .tabpane{display:none;}
+  .tabpane.active{display:block;}
+  .preview-stage{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#EFEDE7;
+    border-radius:var(--radius);
+    padding:16px;
+  }
+  canvas{
+    width:100%;
+    max-width:900px;
+    height:auto;
+    box-shadow:0 6px 24px rgba(0,0,0,.12);
+    border-radius:4px;
+    background:#fff;
+  }
+  .status{
+    font-size:13px;
+    padding:10px 12px;
+    border-radius:8px;
+    margin-top:12px;
+    display:none;
+  }
+  .status.show{display:block;}
+  .status.ok{background:#E9F5EC; color:#1C5E33; border:1px solid #BEE3C8;}
+  .status.err{background:#FCEAEA; color:#8A2020; border:1px solid #F2C6C6;}
+  .status.wait{background:#FFF6E5; color:#7A5300; border:1px solid #F2DFA6;}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+    margin-top:10px;
+  }
+  th,td{
+    text-align:left;
+    padding:7px 8px;
+    border-bottom:1px solid var(--line);
+  }
+  th{color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:.04em;}
+  .batch-list{max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; margin-top:10px;}
+  .config-toggle{
+    font-size:12px;
+    color:var(--muted);
+    cursor:pointer;
+    text-decoration:underline;
+    margin-top:10px;
+    display:inline-block;
+  }
+  #configBox{display:none; margin-top:12px;}
+  #configBox.show{display:block;}
+  .badge{
+    display:inline-block;
+    font-size:11px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:100px;
+    background:#F1EFEA;
+    color:var(--muted);
+  }
+  .badge.on{background:#E9F5EC; color:#1C5E33;}
+  footer{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--muted);
+    padding:24px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Certificate Issuance System</h1>
+  <p>University of the Philippines — Office of the Vice President for Digital Transformation. Generate certificates from the official template and log every issuance to Google Sheets.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- LEFT: CONTROLS -->
+  <div>
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" data-tab="single">Single Certificate</div>
+        <div class="tab" data-tab="batch">Batch (CSV)</div>
+      </div>
+
+      <!-- SINGLE MODE -->
+      <div class="tabpane active" id="pane-single">
+        <label for="nameInput">Recipient name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Juan Dela Cruz" value="">
+
+        <label for="textInput">Description text</label>
+        <textarea id="textInput" placeholder="e.g. for outstanding participation in the AI for Governance Bootcamp held on August 12, 2026"></textarea>
+        <div class="hint">This replaces "text here." on the certificate. Wraps up to 2 lines.</div>
+
+        <button class="btn-secondary" id="downloadPngBtn">Download PNG</button>
+        <button class="btn-primary" id="issueSingleBtn">Issue &amp; Log to Sheet</button>
+        <div class="status" id="singleStatus"></div>
+      </div>
+
+      <!-- BATCH MODE -->
+      <div class="tabpane" id="pane-batch">
+        <label for="csvInput">Paste rows — one per line: <code>Name, Description text</code></label>
+        <textarea id="csvInput" style="min-height:130px" placeholder="Juan Dela Cruz, for completing the Data Analytics Workshop
+Maria Santos, for completing the Data Analytics Workshop"></textarea>
+        <div class="hint">If a line has no comma, the description defaults to the shared text below.</div>
+
+        <label for="defaultTextInput">Default description text</label>
+        <input type="text" id="defaultTextInput" placeholder="for outstanding participation">
+
+        <button class="btn-secondary" id="parseBatchBtn">Preview list</button>
+        <div class="batch-list" id="batchList" style="display:none"></div>
+
+        <button class="btn-gold" id="downloadZipBtn">Download All as ZIP</button>
+        <button class="btn-primary" id="issueBatchBtn">Issue All &amp; Log to Sheet</button>
+        <div class="status" id="batchStatus"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Google Sheets connection <span class="badge" id="connBadge">not connected</span></h2>
+      <div class="hint">Paste the Web App URL from your deployed Apps Script (see README / Code.gs). This is required for "Issue &amp; Log to Sheet".</div>
+      <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec" style="margin-top:10px">
+      <button class="btn-secondary" id="saveUrlBtn">Save connection</button>
+
+      <div class="config-toggle" id="toggleSheetView">Show embedded records view ▾</div>
+      <div id="configBox">
+        <label for="sheetEmbed">Published Google Sheet embed URL (optional)</label>
+        <input type="url" id="sheetEmbed" placeholder="https://docs.google.com/spreadsheets/d/e/.../pubhtml?widget=true&headers=false">
+        <button class="btn-secondary" id="saveEmbedBtn">Show records</button>
+        <div id="embedWrap" style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div>
+    <div class="panel">
+      <h2>Live preview</h2>
+      <div class="preview-stage">
+        <canvas id="certCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Certificate template © UP Office of the Vice President for Digital Transformation. Records are written to your own Google Sheet via Apps Script — no data passes through any third party.</footer>
+
+<script>
+/* ---------- Config persistence ---------- */
+const LS_URL = 'certsys_script_url';
+const LS_EMBED = 'certsys_sheet_embed';
+
+const scriptUrlInput = document.getElementById('scriptUrl');
+const connBadge = document.getElementById('connBadge');
+
+function loadConfig(){
+  const url = localStorage.getItem(LS_URL);
+  if(url){ scriptUrlInput.value = url; connBadge.textContent = 'connected'; connBadge.classList.add('on'); }
+  const embed = localStorage.getItem(LS_EMBED);
+  if(embed){ document.getElementById('sheetEmbed').value = embed; renderEmbed(embed); }
+}
+document.getElementById('saveUrlBtn').addEventListener('click', ()=>{
+  const v = scriptUrlInput.value.trim();
+  if(!v){ alert('Paste your Apps Script Web App URL first.'); return; }
+  localStorage.setItem(LS_URL, v);
+  connBadge.textContent = 'connected';
+  connBadge.classList.add('on');
+});
+document.getElementById('toggleSheetView').addEventListener('click', ()=>{
+  document.getElementById('configBox').classList.toggle('show');
+});
+document.getElementById('saveEmbedBtn').addEventListener('click', ()=>{
+  const v = document.getElementById('sheetEmbed').value.trim();
+  if(!v) return;
+  localStorage.setItem(LS_EMBED, v);
+  renderEmbed(v);
+});
+function renderEmbed(url){
+  document.getElementById('embedWrap').innerHTML =
+    `<iframe src="${url}" style="width:100%; height:320px; border:1px solid var(--line); border-radius:8px;"></iframe>`;
+}
+loadConfig();
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('pane-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+/* ---------- Certificate rendering ---------- */
+const TEMPLATE_SRC = 'assets/template.png';
+const CANVAS_W = 2000, CANVAS_H = 1414;
+const NAME_CENTER = {x:1000, y:645};   // baseline-adjusted center
+const TEXT_CENTER = {x:1000, y:722};
+
+const canvas = document.getElementById('certCanvas');
+canvas.width = CANVAS_W; canvas.height = CANVAS_H;
+const ctx = canvas.getContext('2d');
+
+const templateImg = new Image();
+let templateReady = false;
+templateImg.onload = ()=>{ templateReady = true; draw(document.getElementById('nameInput').value, document.getElementById('textInput').value); };
+templateImg.src = TEMPLATE_SRC;
+
+function fitFontSize(text, family, weight, style, maxWidth, startSize, minSize){
+  let size = startSize;
+  while(size > minSize){
+    ctx.font = `${style} ${weight} ${size}px ${family}`;
+    if(ctx.measureText(text).width <= maxWidth) return size;
+    size -= 2;
+  }
+  return minSize;
+}
+
+function wrapLines(text, family, weight, style, size, maxWidth){
+  ctx.font = `${style} ${weight} ${size}px ${family}`;
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+  for(const w of words){
+    const test = cur ? cur+' '+w : w;
+    if(ctx.measureText(test).width > maxWidth && cur){
+      lines.push(cur); cur = w;
+    } else {
+      cur = test;
+    }
+  }
+  if(cur) lines.push(cur);
+  return lines;
+}
+
+function draw(name, text){
+  if(!templateReady) return;
+  ctx.clearRect(0,0,CANVAS_W,CANVAS_H);
+  ctx.drawImage(templateImg, 0, 0, CANVAS_W, CANVAS_H);
+
+  const nameVal = (name && name.trim()) ? name.trim() : 'Name Here';
+  const textVal = (text && text.trim()) ? text.trim() : 'text here.';
+
+  // Name Here — italic serif, dark gray-blue
+  const nameSize = fitFontSize(nameVal, 'EB Garamond', 600, 'italic', 1500, 78, 40);
+  ctx.font = `italic 600 ${nameSize}px 'EB Garamond'`;
+  ctx.fillStyle = '#595964';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(nameVal, NAME_CENTER.x, NAME_CENTER.y);
+
+  // text here — regular sans, dark gray, wraps up to 2 lines
+  const textSize = 32;
+  const lines = wrapLines(textVal, 'Poppins', 400, 'normal', textSize, 1400).slice(0,2);
+  ctx.font = `400 ${textSize}px 'Poppins'`;
+  ctx.fillStyle = '#333338';
+  const lineHeight = 42;
+  const startY = TEXT_CENTER.y - ((lines.length-1)*lineHeight)/2;
+  lines.forEach((ln,i)=> ctx.fillText(ln, TEXT_CENTER.x, startY + i*lineHeight));
+}
+
+document.getElementById('nameInput').addEventListener('input', e=>{
+  draw(e.target.value, document.getElementById('textInput').value);
+});
+document.getElementById('textInput').addEventListener('input', e=>{
+  draw(document.getElementById('nameInput').value, e.target.value);
+});
+
+/* ---------- Certificate ID ---------- */
+function makeCertId(){
+  const d = new Date();
+  const stamp = d.getFullYear().toString() +
+    String(d.getMonth()+1).padStart(2,'0') +
+    String(d.getDate()).padStart(2,'0') +
+    String(d.getHours()).padStart(2,'0') +
+    String(d.getMinutes()).padStart(2,'0') +
+    String(d.getSeconds()).padStart(2,'0');
+  const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+  return `UP-DX-${stamp}-${rand}`;
+}
+
+/* ---------- Export helpers ---------- */
+function canvasToBlob(cnv){
+  return new Promise(res=> cnv.toBlob(b=>res(b), 'image/png'));
+}
+
+function renderToNewCanvas(name, text){
+  const c = document.createElement('canvas');
+  c.width = CANVAS_W; c.height = CANVAS_H;
+  const cctx = c.getContext('2d');
+  cctx.drawImage(templateImg, 0, 0, CANVAS_W, CANVAS_H);
+
+  const nameVal = (name && name.trim()) ? name.trim() : 'Name Here';
+  const textVal = (text && text.trim()) ? text.trim() : 'text here.';
+
+  const savedCtx = ctx; // reuse measuring via main ctx (same fonts loaded)
+  const nameSize = fitFontSize(nameVal, 'EB Garamond', 600, 'italic', 1500, 78, 40);
+  cctx.font = `italic 600 ${nameSize}px 'EB Garamond'`;
+  cctx.fillStyle = '#595964';
+  cctx.textAlign = 'center';
+  cctx.textBaseline = 'middle';
+  cctx.fillText(nameVal, NAME_CENTER.x, NAME_CENTER.y);
+
+  const textSize = 32;
+  const lines = wrapLines(textVal, 'Poppins', 400, 'normal', textSize, 1400).slice(0,2);
+  cctx.font = `400 ${textSize}px 'Poppins'`;
+  cctx.fillStyle = '#333338';
+  const lineHeight = 42;
+  const startY = TEXT_CENTER.y - ((lines.length-1)*lineHeight)/2;
+  lines.forEach((ln,i)=> cctx.fillText(ln, TEXT_CENTER.x, startY + i*lineHeight));
+
+  return c;
+}
+
+function slug(s){
+  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'certificate';
+}
+
+/* ---------- Single mode actions ---------- */
+document.getElementById('downloadPngBtn').addEventListener('click', async ()=>{
+  const name = document.getElementById('nameInput').value;
+  const text = document.getElementById('textInput').value;
+  const c = renderToNewCanvas(name, text);
+  const blob = await canvasToBlob(c);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `certificate-${slug(name || 'name-here')}.png`;
+  a.click();
+});
+
+function setStatus(el, kind, msg){
+  el.className = 'status show ' + kind;
+  el.textContent = msg;
+}
+
+async function logToSheet(rows){
+  const url = localStorage.getItem(LS_URL);
+  if(!url) throw new Error('No Google Sheets connection configured yet.');
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight against Apps Script
+    body: JSON.stringify({ records: rows })
+  });
+  if(!res.ok) throw new Error('Sheet logging failed: HTTP '+res.status);
+  const data = await res.json().catch(()=>({status:'ok'}));
+  if(data.status && data.status !== 'ok') throw new Error(data.message || 'Sheet returned an error.');
+  return data;
+}
+
+document.getElementById('issueSingleBtn').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('singleStatus');
+  const name = document.getElementById('nameInput').value.trim();
+  const text = document.getElementById('textInput').value.trim();
+  if(!name){ setStatus(statusEl,'err','Enter a recipient name first.'); return; }
+  const certId = makeCertId();
+  setStatus(statusEl,'wait','Issuing…');
+  try{
+    await logToSheet([{ certId, name, text, timestamp: new Date().toISOString() }]);
+    setStatus(statusEl,'ok', `Issued as ${certId} and logged to Google Sheets.`);
+  }catch(err){
+    setStatus(statusEl,'err', err.message);
+  }
+});
+
+/* ---------- Batch mode ---------- */
+let batchRows = [];
+
+function parseBatch(){
+  const raw = document.getElementById('csvInput').value;
+  const defaultText = document.getElementById('defaultTextInput').value.trim();
+  batchRows = raw.split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{
+    const idx = line.indexOf(',');
+    if(idx === -1) return { name: line, text: defaultText };
+    return { name: line.slice(0,idx).trim(), text: line.slice(idx+1).trim() || defaultText };
+  });
+  const listEl = document.getElementById('batchList');
+  if(batchRows.length === 0){ listEl.style.display='none'; listEl.innerHTML=''; return; }
+  listEl.style.display = 'block';
+  listEl.innerHTML = '<table><thead><tr><th>#</th><th>Name</th><th>Text</th></tr></thead><tbody>' +
+    batchRows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.name}</td><td>${r.text||'<span style="color:#aaa">(default)</span>'}</td></tr>`).join('') +
+    '</tbody></table>';
+}
+document.getElementById('parseBatchBtn').addEventListener('click', parseBatch);
+
+document.getElementById('downloadZipBtn').addEventListener('click', async ()=>{
+  parseBatch();
+  if(batchRows.length === 0){ alert('Add at least one row first.'); return; }
+  const zip = new JSZip();
+  for(const r of batchRows){
+    const c = renderToNewCanvas(r.name, r.text);
+    const blob = await canvasToBlob(c);
+    zip.file(`certificate-${slug(r.name)}.png`, blob);
+  }
+  const content = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = 'certificates.zip';
+  a.click();
+});
+
+document.getElementById('issueBatchBtn').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('batchStatus');
+  parseBatch();
+  if(batchRows.length === 0){ setStatus(statusEl,'err','Add at least one row first.'); return; }
+  setStatus(statusEl,'wait',`Issuing ${batchRows.length} certificates…`);
+  try{
+    const rows = batchRows.map(r=>({
+      certId: makeCertId(),
+      name: r.name,
+      text: r.text,
+      timestamp: new Date().toISOString()
+    }));
+    await logToSheet(rows);
+    setStatus(statusEl,'ok', `Issued and logged ${rows.length} certificates to Google Sheets.`);
+  }catch(err){
+    setStatus(statusEl,'err', err.message);
+  }
+});
+</script>
+</body>
+</html>
